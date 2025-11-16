@@ -1,6 +1,9 @@
 # Focus Control
 
-**Focus Control** — a small GNOME Shell extension that gives you directional window focusing (like a tiling WM). Use four configurable keybindings to jump focus to the window left / right / up / down of the current window. The active window is briefly highlighted with a blue border so you always know which window received focus. Works great alongside tiling helpers such as **gTile**.
+**Focus Control** — a small GNOME Shell extension that gives you directional
+window focusing (like a tiling WM).
+
+![cover](thumbnail.png)
 
 ---
 
