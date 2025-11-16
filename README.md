@@ -3,7 +3,7 @@
 **Focus Control** — a small GNOME Shell extension that gives you directional
 window focusing (like a tiling WM).
 
-![cover](thumbnail.png)
+![cover](thumbnail.gif)
 
 ---
 
