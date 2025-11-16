@@ -1,0 +1,9 @@
+{
+    "name": "Focus Control",
+    "description": "Easily move focus between windows in GNOME, just like a tiling WM.",
+    "uuid": "focuscontrol@itsfernn",
+    "shell-version": [
+        "49"
+    ],
+    "settings-schema": "org.gnome.shell.extensions.focuscontrol"
+}

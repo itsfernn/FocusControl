@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.focuscontrol" path="/org/gnome/shell/extensions/focuscontrol/">
+    <key name="focus-up" type="as">
+        <default>[]</default>
+        <summary>Focus Up</summary>
+        <description>Keybinding to focus the next window up</description>
+    </key>
+    <key name="focus-down" type="as">
+        <default>[]</default>
+        <summary>Focus Down</summary>
+        <description>Keybinding to focus the next window down</description>
+    </key>
+    <key name="focus-left" type="as">
+        <default>[]</default>
+        <summary>Focus Left</summary>
+        <description>Keybinding to focus the next window to the left</description>
+    </key>
+    <key name="focus-right" type="as">
+        <default>[]</default>
+        <summary>Focus Right</summary>
+        <description>Keybinding to focus the next window to the right</description>
+    </key>
+  </schema>
+</schemalist>
