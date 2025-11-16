@@ -2,6 +2,7 @@ import Adw from "gi://Adw";
 import Gtk from "gi://Gtk";
 import Gio from "gi://Gio";
 import Pango from "gi://Pango";
+import Gdk from "gi://Gdk";
 
 import { ExtensionPreferences } from "resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js";
 
@@ -41,6 +42,8 @@ export default class Preferences extends ExtensionPreferences {
         return group;
     }
 
+
+
     _buildBorderStyleGroup() {
         const group = new Adw.PreferencesGroup({
             title: "Highlight Border Style",
@@ -50,7 +53,7 @@ export default class Preferences extends ExtensionPreferences {
         // add row to set border width (setting: border-width)
         group.add(this._spinRow("border-width", 1, 20, 1));
         group.add(this._spinRow("corner-radius", 0, 20, 1));
-        group.add(this._entryRow("border-color"));
+        group.add(this._colorRow("border-color"));
 
         return group;
     }
@@ -68,6 +71,28 @@ export default class Preferences extends ExtensionPreferences {
 
         return row;
     }
+
+    _colorRow(schemaKey) {
+        const summary = this._settings.settings_schema.get_key(schemaKey).get_summary();
+        const row = new Adw.ActionRow({ title: summary ?? undefined });
+        const colorDialog = new Gtk.ColorDialog();
+        const button = new Gtk.ColorDialogButton({ dialog: colorDialog, });
+
+        const rgba = new Gdk.RGBA();
+        rgba.parse(this._settings.get_string(schemaKey));
+        button.rgba = rgba;
+
+        button.connect("notify::rgba", () => {
+            const newRgba = button.rgba;
+            this._settings.set_string(schemaKey, newRgba.to_string());
+        });
+
+        row.add_suffix(button);
+        row.activatable_widget = button;
+
+        return row;
+    }
+
 
     _entryRow(schemaKey) {
         const settingsSchemaKey = this._settings.settings_schema.get_key(schemaKey);
