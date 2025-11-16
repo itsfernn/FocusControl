@@ -106,13 +106,11 @@ export default class Preferences extends ExtensionPreferences {
         return row;
     }
 
+    #escape(text) {
+        return text.split(">").map(t => t.replace("<", "")).join(" + ");
+    }
 
 
-
-
-    /* ---------------------------
-     * ShortcutRow helper
-     * --------------------------- */
     _shortcutRow(key) {
         const settings = this._settings;
         const schemaKey = settings.settings_schema.get_key(key);
@@ -123,7 +121,7 @@ export default class Preferences extends ExtensionPreferences {
         });
 
         const label = new Gtk.Label({
-            label: "<Unset>",
+            label: "",
             xalign: 0,
             ellipsize: Pango.EllipsizeMode.END,
             use_markup: true,
@@ -134,68 +132,169 @@ export default class Preferences extends ExtensionPreferences {
         const updateLabel = () => {
             const val = settings.get_strv(key);
 
-            if (val.length) {
-                // Escape Pango markup characters in the shortcut string
-                const escaped_val = val.map(shortcut =>
-                    shortcut.replace(/&/g, '&amp;') // Escape & first
-                        .replace(/</g, '&lt;')
-                        .replace(/>/g, '&gt;')
-                );
 
-                label.label = `<b>${escaped_val.join(", ")}</b>`;
+            if (val.length) {
+                const keybindLabel = val
+                    .map(v =>
+                        this.#escape(v)
+                    )
+                    .join("; ");
+
+                label.label = `<b>${keybindLabel}</b>`;
             } else {
-                label.label = "<Unset>";
+                label.label = `<i>no Keybinding</i>`;
             }
         };
-
+        let acceleratorName = undefined;
         updateLabel();
 
         row.connect("activated", () => {
             const dialog = new Adw.MessageDialog({
                 heading: "Set shortcut",
-                body: "Press the new shortcut, ESC to cancel, or Backspace to clear.",
                 modal: true,
             });
+
+            const updateBody = (name) => {
+                name = name ? `${this.#escape(name)}` : "no Keybinding";
+                dialog.body = `Enter a new shortcut, ESC to cancel, or Backspace to clear.\n\n${name}`;
+            };
+
+            updateBody(settings.get_strv(key)[0] || null);
+
+
 
             const controller = new Gtk.EventControllerKey();
             dialog.add_controller(controller);
 
+            dialog.add_response("save", "Save");
+            dialog.set_response_appearance("save", Adw.ResponseAppearance.SUGGESTED);
 
-            controller.connect("key-pressed", (_ec, keyval, keycode, mask) => {
+            dialog.add_response("cancel", "Cancel");
+            dialog.set_response_appearance("cancel", Adw.ResponseAppearance.DEFAULT);
 
-
-                mask = mask & Gtk.accelerator_get_default_mod_mask();
-
-                if (mask === 0) {
-                    switch (keyval) {
-                        case Gdk.KEY_Escape:
-                            dialog.close();
-                            return Gdk.EVENT_STOP;
-                        case Gdk.KEY_BackSpace:
+            dialog.connect("response", (_, response) => {
+                switch (response) {
+                    case "save":
+                        if (acceleratorName === null) {
                             this._settings.set_strv(key, []);
-                            updateLabel();
-                            dialog.close();
-                            return Gdk.EVENT_STOP;
-                    }
+                        } else {
+                            this._settings.set_strv(key, [acceleratorName]);
+                        }
+                        break;
+                    case "cancel":
+                        break;
                 }
 
-                const selectedShortcut = Gtk.accelerator_name_with_keycode(
-                    null,
-                    keyval,
-                    keycode,
-                    mask
-                );
-
-                this._settings.set_strv(key, [selectedShortcut]);
-                dialog.close();
                 updateLabel();
-                return Gdk.EVENT_STOP;
+                dialog.close();
+            });
 
+
+
+            controller.connect("key-pressed", (ctrl, _, keycode, mask) => {
+                const event = ctrl.get_current_event();
+                const display = event.get_display();
+                const { keyval, modifier } =
+                    this.#normalizeKeyvalAndMask(display, keycode, mask, ctrl.get_group());
+
+
+                if (event.is_modifier()) {
+                    return Gdk.EVENT_STOP;
+                }
+
+                switch (keyval) {
+                    case Gdk.KEY_Escape:
+                        updateLabel();
+                        dialog.close();
+                        return Gdk.EVENT_STOP;
+                    case Gdk.KEY_BackSpace:
+                        acceleratorName = null;
+                        break;
+                    case Gdk.KEY_Return:
+                        if (modifier === 0) {
+                            // <Enter> may confirm a shortcut, if one was recognized already.
+                            // But <Enter> may also serve as legitimate shortcut on its own.
+                            // To differentiate between the two cases, it is checked whether
+                            // another shortcut had already been provided.
+                            if (acceleratorName === undefined) {
+                                acceleratorName = Gtk.accelerator_name(keyval, modifier);
+                                break;
+                            } else if (acceleratorName === null) {
+                                this._settings.set_strv(key, []);
+                                updateLabel();
+                                dialog.close();
+                            } else {
+                                this._settings.set_strv(key, [acceleratorName]);
+                                updateLabel();
+                                dialog.close();
+                            }
+                            return Gdk.EVENT_STOP;
+                        }
+                    // intentionally fallthrough
+                    default:
+                        acceleratorName = Gtk.accelerator_name(keyval, modifier);
+                }
+
+                const name = acceleratorName ?? null;
+                updateBody(name);
+
+                return Gdk.EVENT_STOP;
             });
             dialog.present();
 
         });
         return row;
     }
-}
 
+    // https://gitlab.gnome.org/GNOME/gnome-control-center/-/blob/a936ac6bc9d5a01dd2c3fcb905189570ecd72753/panels/keyboard/keyboard-shortcuts.c#L388
+    #normalizeKeyvalAndMask(display, code, mask, keyGroup) {
+        // Note that GDK may add internal values to events which include values
+        // outside of the Gdk.ModifierType enumeration. Usually the code should
+        // preserve and ignore them.
+        // That being said, the `Gdk.Display.translate_key` method throws an error
+        // when these internal values are preserved. Thus, for the purpose of
+        // normalization it is vital to ignore these bits beforehand.
+        // https://gitlab.gnome.org/GNOME/gtk/-/blob/69500f356e61e437853f44c992c9bbca2ae5f8f7/gdk/gdkenums.h#L111-113
+        mask &= Gdk.MODIFIER_MASK;
+
+        let explicitModifiers = Gtk.accelerator_get_default_mod_mask();
+
+        // We want shift to always be included as explicit modifier for gnome-shell
+        // shortcuts.That's because users usually think of shortcuts as including
+        // the shift key rather than being defined for the shifted keyval.
+        // This helps with num - row keys which have different keyvals on different
+        // layouts for example, but also with keys that have explicit key codes at
+        // shift level 0, that gnome-shell would prefer over shifted ones, such the
+        // DOLLAR key.
+        explicitModifiers |= Gdk.ModifierType.SHIFT_MASK;
+
+        // CapsLock isn't supported as a keybinding modifier, so keep it from
+        // confusing us.
+        // https://gitlab.gnome.org/GNOME/gnome-control-center/-/blob/a936ac6bc9d5a01dd2c3fcb905189570ecd72753/panels/keyboard/cc-keyboard-shortcut-editor.c#L713
+        explicitModifiers &= ~Gdk.ModifierType.LOCK_MASK;
+
+        const usedModifiers = mask & explicitModifiers;
+
+        let [, unmodifiedKeyval] = display.translate_key(
+            code, mask & ~explicitModifiers, keyGroup);
+        const [, shiftedKeyval] = display.translate_key(
+            code, Gdk.ModifierType.SHIFT_MASK | (mask & ~explicitModifiers), keyGroup);
+
+        if (Gdk.KEY_0 <= shiftedKeyval && shiftedKeyval <= Gdk.KEY_9) {
+            unmodifiedKeyval = shiftedKeyval;
+        }
+
+        if (unmodifiedKeyval === Gdk.KEY_ISO_Left_Tab) {
+            unmodifiedKeyval = Gdk.KEY_Tab;
+        }
+
+        if (
+            unmodifiedKeyval === Gdk.KEY_Sys_Req &&
+            (usedModifiers & Gdk.ModifierType.ALT_MASK) != 0
+        ) {
+            unmodifiedKeyval = Gdk.KEY_Print;
+        }
+
+        return { keyval: unmodifiedKeyval, modifier: usedModifiers };
+    }
+}
