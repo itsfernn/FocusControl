@@ -35,5 +35,5 @@ window focusing (like a tiling WM).
 * There are four actions to bind: **Focus Left**, **Focus Right**, **Focus Up**, **Focus Down**.
 * Press the bound key to move focus in that direction. The focused window will be outlined with a temporary blue border.
 
-*Tip:* Pair Focus Control with [gTile](github.com/gTile) or other tiling helpers — gTile arranges windows, Focus Control lets you navigate them quickly.
+*Tip:* Pair Focus Control with [gTile](https://github.com/gTile) or other tiling helpers — gTile arranges windows, Focus Control lets you navigate them quickly.
 
