@@ -19,46 +19,6 @@ let highlightRect = null;
 let highlightWindow = null;
 
 
-function drawHighlightAroundWindow(window) {
-    if (highlightRect) {
-        Main.uiGroup.remove_child(highlightRect);
-        highlightRect.destroy();
-        highlightRect = null;
-        highlightWindow = null;
-    }
-
-
-    if (!window) {
-        log("No focused window found to highlight.");
-        return;
-    }
-
-    const cw = window.get_frame_rect();
-
-    highlightRect = new St.Widget({
-        x: cw.x,
-        y: cw.y,
-        width: cw.width,
-        height: cw.height,
-        style: 'border: 4px rgba(60, 170, 220, 0.8) solid; border-radius: 10px;',
-        reactive: false,
-    });
-
-    highlightWindow = window;
-
-    Main.uiGroup.add_child(highlightRect);
-
-    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 350, () => {
-        if (highlightRect &&
-            highlightWindow &&
-            highlightWindow === window) {
-            Main.uiGroup.remove_child(highlightRect);
-            highlightRect.destroy();
-            highlightRect = null;
-        }
-        return GLib.SOURCE_REMOVE
-    });
-}
 
 
 export default class FocusControl extends Extension {
@@ -145,8 +105,56 @@ export default class FocusControl extends Extension {
 
         if (best) {
             best.activate(global.get_current_time());
-            drawHighlightAroundWindow(best);
+            this.drawHighlightAroundWindow(best);
         }
+    }
+    drawHighlightAroundWindow(window) {
+        if (highlightRect) {
+            Main.uiGroup.remove_child(highlightRect);
+            highlightRect.destroy();
+            highlightRect = null;
+            highlightWindow = null;
+        }
+
+        if (!window) {
+            log("No focused window found to highlight.");
+            return;
+        }
+
+        const cw = window.get_frame_rect();
+
+
+        const border_color = this._settings.get_string('border-color') || "#3caadc";
+        const corner_radius = this._settings.get_int('corner-radius') || 10;
+        const border_width = this._settings.get_int('border-width') || 4;
+
+        const style = 'border: ' + border_width + 'px solid ' + border_color + '; ' +
+            'border-radius: ' + corner_radius + 'px; ';
+
+
+        highlightRect = new St.Widget({
+            x: cw.x,
+            y: cw.y,
+            width: cw.width,
+            height: cw.height,
+            style: style,
+            reactive: false,
+        });
+
+        highlightWindow = window;
+
+        Main.uiGroup.add_child(highlightRect);
+
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 350, () => {
+            if (highlightRect &&
+                highlightWindow &&
+                highlightWindow === window) {
+                Main.uiGroup.remove_child(highlightRect);
+                highlightRect.destroy();
+                highlightRect = null;
+            }
+            return GLib.SOURCE_REMOVE
+        });
     }
 }
 

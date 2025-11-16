@@ -20,6 +20,21 @@
         <default>[]</default>
         <summary>Focus Right</summary>
         <description>Keybinding to focus the next window to the right</description>
+        </key>
+    <key name="corner-radius" type="i">
+        <default>10</default>
+        <summary>Corner Radius</summary>
+        <description>Radius of the rounded corners for focused windows</description>
+    </key>
+    <key name="border-color" type="s">
+        <default>"#3caadc"</default>
+        <summary>Border Color</summary>
+        <description>Color of the border for focused windows (in hex format)</description>
+    </key>
+    <key name="border-width" type="i">
+            <default>4</default>
+            <summary>Border Width</summary>
+            <description>Width of the border for focused windows (in pixels)</description>
     </key>
   </schema>
 </schemalist>

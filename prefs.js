@@ -1,7 +1,6 @@
 import Adw from "gi://Adw";
 import Gtk from "gi://Gtk";
 import Gio from "gi://Gio";
-import GObject from "gi://GObject";
 import Pango from "gi://Pango";
 
 import { ExtensionPreferences } from "resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js";
@@ -10,7 +9,7 @@ export default class Preferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         this._settings = this.getSettings('org.gnome.shell.extensions.focuscontrol');
 
-        window.set_default_size(600, 400);
+        window.set_default_size(600, 650);
         window.set_search_enabled(true);
 
         window.add(this._buildKeybindingsPage());
@@ -22,19 +21,69 @@ export default class Preferences extends ExtensionPreferences {
             icon_name: "preferences-desktop-keyboard-shortcuts-symbolic",
         });
 
+        page.add(this._buildKeybindingsGroup());
+        page.add(this._buildBorderStyleGroup());
+
+        return page;
+    }
+
+    _buildKeybindingsGroup() {
         const group = new Adw.PreferencesGroup({
             title: "Window Focus Shortcuts",
             description: "Configure directional focus movement shortcuts.",
         });
-        page.add(group);
 
         group.add(this._shortcutRow("focus-up"));
         group.add(this._shortcutRow("focus-left"));
         group.add(this._shortcutRow("focus-right"));
         group.add(this._shortcutRow("focus-down"));
 
-        return page;
+        return group;
     }
+
+    _buildBorderStyleGroup() {
+        const group = new Adw.PreferencesGroup({
+            title: "Highlight Border Style",
+            description: "Configure the appearance of the focus highlight border.",
+        });
+
+        // add row to set border width (setting: border-width)
+        group.add(this._spinRow("border-width", 1, 20, 1));
+        group.add(this._spinRow("corner-radius", 0, 20, 1));
+        group.add(this._entryRow("border-color"));
+
+        return group;
+    }
+
+    _spinRow(schemaKey, lower, upper, step) {
+        const settingsSchemaKey = this._settings.settings_schema.get_key(schemaKey);
+        const row = new Adw.SpinRow({
+            title: settingsSchemaKey.get_summary() ?? undefined,
+        });
+        row.adjustment.lower = lower;
+        row.adjustment.upper = upper;
+        row.adjustment.step_increment = step;
+        row.adjustment.page_increment = step * 10;
+        this._settings.bind(schemaKey, row, "value", Gio.SettingsBindFlags.DEFAULT);
+
+        return row;
+    }
+
+    _entryRow(schemaKey) {
+        const settingsSchemaKey = this._settings.settings_schema.get_key(schemaKey);
+        const row = new Adw.EntryRow({
+            title: settingsSchemaKey.get_summary() ?? undefined,
+            editable: true,
+            show_apply_button: true,
+        });
+        this._settings.bind(schemaKey, row, "text", Gio.SettingsBindFlags.DEFAULT);
+
+        return row;
+    }
+
+
+
+
 
     /* ---------------------------
      * ShortcutRow helper
