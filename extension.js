@@ -14,11 +14,6 @@ const Direction = {
 };
 
 
-
-
-
-
-
 export default class FocusControl extends Extension {
 
     enable() {
