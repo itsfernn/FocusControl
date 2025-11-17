@@ -117,8 +117,11 @@ export default class FocusControl extends Extension {
         if (best) {
             best.activate(global.get_current_time());
             this.drawHighlightAroundWindow(best);
+        } else {
+            this.drawHighlightAroundWindow(currentWindow);
         }
     }
+
     drawHighlightAroundWindow(window) {
         if (this.highlightRect) {
             Main.uiGroup.remove_child(this.highlightRect);
