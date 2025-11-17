@@ -117,6 +117,9 @@ export default class FocusControl extends Extension {
         if (best) {
             best.activate(global.get_current_time());
             this.drawHighlightAroundWindow(best);
+        } else {
+            // No suitable window found, highlight the current window
+            this.drawHighlightAroundWindow(currentWindow);
         }
     }
     drawHighlightAroundWindow(window) {
