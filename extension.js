@@ -108,9 +108,15 @@ export default class FocusControl extends Extension {
             // Distance
             const dist = Math.hypot(fx - cx, fy - cy);
 
-            if (dist < bestDistance) {
+            if (bestDistance - dist > threshold) {
                 bestDistance = dist;
                 best = win;
+            } else if (dist - bestDistance < threshold) {
+                // Tie-breaker: prefer more recent windows
+                if (win.get_user_time() > best.get_user_time()) {
+                    bestDistance = dist;
+                    best = win;
+                }
             }
         }
 
