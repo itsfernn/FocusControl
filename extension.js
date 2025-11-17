@@ -24,6 +24,35 @@ export default class FocusControl extends Extension {
         this.registerHotkey('focus-down', () => this.changeFocus(Direction.DOWN));
         this.registerHotkey('focus-left', () => this.changeFocus(Direction.LEFT));
         this.registerHotkey('focus-right', () => this.changeFocus(Direction.RIGHT));
+        this.focus_win = null
+        this.resize_signal = null
+        this.position_signal = null
+        this.focus_signal = global.display.connect('notify::focus-window', () => {
+            if (this.focus_win) {
+                if (this.resize_signal) {
+                    this.focus_win.disconnect(this.resize_signal);
+                    this.resize_signal = null;
+                }
+                if (this.position_signal) {
+                    this.focus_win.disconnect(this.position_signal);
+                    this.position_signal = null;
+                }
+            }
+
+            this.focus_win = global.display.get_focus_window();
+            if (!this.focus_win) {
+                return;
+            }
+
+            this.resize_signal = this.focus_win.connect('size-changed', () => {
+                this.drawHighlightAroundWindow(this.focus_win);
+            });
+            this.position_signal = this.focus_win.connect('position-changed', () => {
+                this.drawHighlightAroundWindow(this.focus_win);
+            });
+
+            this.drawHighlightAroundWindow(this.focus_win);
+        });
     }
 
     disable() {
@@ -44,6 +73,23 @@ export default class FocusControl extends Extension {
         this.unregisterHotkey('focus-down');
         this.unregisterHotkey('focus-left');
         this.unregisterHotkey('focus-right');
+
+        if (this.focus_win) {
+            if (this.resize_signal) {
+                this.focus_win.disconnect(this.resize_signal);
+                this.resize_signal = null;
+            }
+            if (this.position_signal) {
+                this.focus_win.disconnect(this.position_signal);
+                this.position_signal = null;
+            }
+            this.focus_win = null;
+        }
+
+        if (this.focus_signal) {
+            global.display.disconnect(this.focus_signal);
+            this.focus_signal = null;
+        }
     }
 
     registerHotkey(name, callback) {
@@ -115,12 +161,8 @@ export default class FocusControl extends Extension {
             }
         }
 
-        if (best) {
-            best.activate(global.get_current_time());
-            this.drawHighlightAroundWindow(best);
-        } else {
-            this.drawHighlightAroundWindow(currentWindow);
-        }
+        const newFocus = best || currentWindow; // Fallback to current window so it gets highlighted again
+        newFocus.activate(global.get_current_time());
     }
 
     drawHighlightAroundWindow(window) {
