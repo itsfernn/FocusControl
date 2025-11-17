@@ -15,8 +15,6 @@ const Direction = {
 
 
 
-let highlightRect = null;
-let highlightWindow = null;
 
 
 
@@ -24,16 +22,29 @@ let highlightWindow = null;
 export default class FocusControl extends Extension {
 
     enable() {
-        this._settings = this.getSettings('org.gnome.shell.extensions.focuscontrol');
+        this._settings = this.getSettings();
+        this.highlightRect = null;
+
         this.registerHotkey('focus-up', () => this.changeFocus(Direction.UP));
         this.registerHotkey('focus-down', () => this.changeFocus(Direction.DOWN));
         this.registerHotkey('focus-left', () => this.changeFocus(Direction.LEFT));
         this.registerHotkey('focus-right', () => this.changeFocus(Direction.RIGHT));
-
     }
 
     disable() {
+        if (this.timeoutId) {
+            GLib.source_remove(this.timeoutId);
+            this.timeoutId = null;
+        }
+
+        if (this.highlightRect) {
+            Main.uiGroup.remove_child(this.highlightRect);
+            this.highlightRect.destroy();
+            this.highlightRect = null;
+        }
+
         this._settings = null;
+
         this.unregisterHotkey('focus-up');
         this.unregisterHotkey('focus-down');
         this.unregisterHotkey('focus-left');
@@ -109,11 +120,10 @@ export default class FocusControl extends Extension {
         }
     }
     drawHighlightAroundWindow(window) {
-        if (highlightRect) {
-            Main.uiGroup.remove_child(highlightRect);
-            highlightRect.destroy();
-            highlightRect = null;
-            highlightWindow = null;
+        if (this.highlightRect) {
+            Main.uiGroup.remove_child(this.highlightRect);
+            this.highlightRect.destroy();
+            this.highlightRect = null;
         }
 
         if (!window) {
@@ -132,7 +142,7 @@ export default class FocusControl extends Extension {
             'border-radius: ' + corner_radius + 'px; ';
 
 
-        highlightRect = new St.Widget({
+        this.highlightRect = new St.Widget({
             x: cw.x,
             y: cw.y,
             width: cw.width,
@@ -141,17 +151,18 @@ export default class FocusControl extends Extension {
             reactive: false,
         });
 
-        highlightWindow = window;
+        Main.uiGroup.add_child(this.highlightRect);
 
-        Main.uiGroup.add_child(highlightRect);
+        if (this.timeoutId) {
+            GLib.source_remove(this.timeoutId);
+            this.timeoutId = null;
+        }
 
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 350, () => {
-            if (highlightRect &&
-                highlightWindow &&
-                highlightWindow === window) {
-                Main.uiGroup.remove_child(highlightRect);
-                highlightRect.destroy();
-                highlightRect = null;
+        this.timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 350, () => {
+            if (this.highlightRect) {
+                Main.uiGroup.remove_child(this.highlightRect);
+                this.highlightRect.destroy();
+                this.highlightRect = null;
             }
             return GLib.SOURCE_REMOVE
         });
