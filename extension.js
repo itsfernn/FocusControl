@@ -13,86 +13,113 @@ const Direction = {
     RIGHT: 'right',
 };
 
+let showHighlight = true;
+
+let overviewSignalIds = [null, null];
+let windowSignalIds = [null, null];
+let focusSignalId = null;
+
+let timerId = null;
+
+let focusWindow = null;
+let highlightRect = null;
+
 
 export default class FocusControl extends Extension {
 
     enable() {
         this._settings = this.getSettings();
-        this.highlightRect = null;
 
-        this.registerHotkey('focus-up', () => this.changeFocus(Direction.UP));
-        this.registerHotkey('focus-down', () => this.changeFocus(Direction.DOWN));
-        this.registerHotkey('focus-left', () => this.changeFocus(Direction.LEFT));
-        this.registerHotkey('focus-right', () => this.changeFocus(Direction.RIGHT));
-        this.focus_win = null
-        this.resize_signal = null
-        this.position_signal = null
-        this.focus_signal = global.display.connect('notify::focus-window', () => {
-            if (this.focus_win) {
-                if (this.resize_signal) {
-                    this.focus_win.disconnect(this.resize_signal);
-                    this.resize_signal = null;
-                }
-                if (this.position_signal) {
-                    this.focus_win.disconnect(this.position_signal);
-                    this.position_signal = null;
-                }
-            }
+        this._registerHotkey('focus-up', () => this.changeFocus(Direction.UP));
+        this._registerHotkey('focus-down', () => this.changeFocus(Direction.DOWN));
+        this._registerHotkey('focus-left', () => this.changeFocus(Direction.LEFT));
+        this._registerHotkey('focus-right', () => this.changeFocus(Direction.RIGHT));
 
-            this.focus_win = global.display.get_focus_window();
-            if (!this.focus_win) {
-                return;
-            }
-
-            this.resize_signal = this.focus_win.connect('size-changed', () => {
-                this.drawHighlightAroundWindow(this.focus_win);
-            });
-            this.position_signal = this.focus_win.connect('position-changed', () => {
-                this.drawHighlightAroundWindow(this.focus_win);
-            });
-
-            this.drawHighlightAroundWindow(this.focus_win);
-        });
+        this._setupSignals();
     }
+
 
     disable() {
-        if (this.timeoutId) {
-            GLib.source_remove(this.timeoutId);
-            this.timeoutId = null;
-        }
-
-        if (this.highlightRect) {
-            Main.uiGroup.remove_child(this.highlightRect);
-            this.highlightRect.destroy();
-            this.highlightRect = null;
-        }
-
         this._settings = null;
+        showHighlight = null;
 
-        this.unregisterHotkey('focus-up');
-        this.unregisterHotkey('focus-down');
-        this.unregisterHotkey('focus-left');
-        this.unregisterHotkey('focus-right');
+        this._unregisterHotkey('focus-up');
+        this._unregisterHotkey('focus-down');
+        this._unregisterHotkey('focus-left');
+        this._unregisterHotkey('focus-right');
 
-        if (this.focus_win) {
-            if (this.resize_signal) {
-                this.focus_win.disconnect(this.resize_signal);
-                this.resize_signal = null;
+        this._destroyHighlight();
+        this._destroyTimer();
+
+        this._disconnectSignals();
+    }
+
+
+    _setupSignals() {
+        overviewSignalIds[0] = Main.overview.connect('shown', () => {
+            showHighlight = false;
+        });
+
+        overviewSignalIds[1] = Main.overview.connect('hidden', () => {
+            showHighlight = true;
+            if (focusWindow) {
+                this.drawHighlightAroundWindow(focusWindow);
             }
-            if (this.position_signal) {
-                this.focus_win.disconnect(this.position_signal);
-                this.position_signal = null;
+        });
+
+        focusSignalId = global.display.connect('notify::focus-window', () => {
+            if (focusWindow) {
+                for (let i = 0; i < windowSignalIds.length; i++) {
+                    if (windowSignalIds[i]) {
+                        focusWindow.disconnect(windowSignalIds[i]);
+                        windowSignalIds[i] = null;
+                    }
+                }
             }
-            this.focus_win = null;
+
+            // update to new window
+            focusWindow = global.display.get_focus_window();
+            if (!focusWindow)
+                return;
+
+            // connect new signals
+            windowSignalIds[0] = focusWindow.connect('size-changed', () => {
+                this.drawHighlightAroundWindow(focusWindow);
+            });
+            windowSignalIds[1] = focusWindow.connect('position-changed', () => {
+                this.drawHighlightAroundWindow(focusWindow);
+            });
+
+            this.drawHighlightAroundWindow(focusWindow);
+        });
+
+    }
+
+    _disconnectSignals() {
+        for (let i = 0; i < overviewSignalIds.length; i++) {
+            if (overviewSignalIds[i]) {
+                Main.overview.disconnect(overviewSignalIds[i]);
+                overviewSignalIds[i] = null;
+            }
         }
 
-        if (this.focus_signal) {
-            global.display.disconnect(this.focus_signal);
-            this.focus_signal = null;
+        if (focusSignalId) {
+            global.display.disconnect(focusSignalId);
+            focusSignalId = null;
+        }
+
+        if (focusWindow) {
+            for (let i = 0; i < windowSignalIds.length; i++) {
+                if (windowSignalIds[i]) {
+                    focusWindow.disconnect(windowSignalIds[i]);
+                    windowSignalIds[i] = null;
+                }
+            }
+            focusWindow = null;
         }
     }
 
-    registerHotkey(name, callback) {
+    _registerHotkey(name, callback) {
         Main.wm.addKeybinding(
             name,                         // GSettings key
             this._settings,                     // Where the keybinding is stored
@@ -102,7 +129,7 @@ export default class FocusControl extends Extension {
         );
     }
 
-    unregisterHotkey(name) {
+    _unregisterHotkey(name) {
         Main.wm.removeKeybinding(name);
     }
 
