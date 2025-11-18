@@ -190,13 +190,29 @@ export default class FocusControl extends Extension {
 
         const newFocus = best || currentWindow; // Fallback to current window so it gets highlighted again
         newFocus.activate(global.get_current_time());
+    _destroyHighlight() {
+        if (highlightRect) {
+            Main.uiGroup.remove_child(highlightRect);
+            highlightRect.destroy();
+            highlightRect = null;
+        }
+    }
+
+    _destroyTimer() {
+        if (timerId) {
+            GLib.source_remove(timerId);
+            timerId = null;
+        }
     }
 
     drawHighlightAroundWindow(window) {
-        if (this.highlightRect) {
-            Main.uiGroup.remove_child(this.highlightRect);
-            this.highlightRect.destroy();
-            this.highlightRect = null;
+        if (!showHighlight) {
+            return;
+        }
+
+        if (!highlightRect) {
+            highlightRect = new St.Widget({ reactive: false });
+            Main.uiGroup.add_child(highlightRect);
         }
 
         if (!window) {
@@ -215,32 +231,23 @@ export default class FocusControl extends Extension {
             'border-radius: ' + corner_radius + 'px; ';
 
 
-        this.highlightRect = new St.Widget({
-            x: cw.x,
-            y: cw.y,
-            width: cw.width,
-            height: cw.height,
-            style: style,
-            reactive: false,
-        });
+        highlightRect.set_position(cw.x, cw.y);
+        highlightRect.set_size(cw.width, cw.height);
+        highlightRect.set_style(style);
+        highlightRect.show();
 
-        Main.uiGroup.add_child(this.highlightRect);
 
-        if (this.timeoutId) {
-            GLib.source_remove(this.timeoutId);
-            this.timeoutId = null;
-        }
 
-        const highlight_duration = this._settings.get_int('highlight-duration') || 350;
+        const duration = this._settings.get_int('highlight-duration') || 350;
 
-        this.timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, highlight_duration, () => {
-            if (this.highlightRect) {
-                Main.uiGroup.remove_child(this.highlightRect);
-                this.highlightRect.destroy();
-                this.highlightRect = null;
-            }
+        this._destroyTimer();
+
+        timerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, duration, () => {
+            highlightRect.hide();
+            timerId = null;
             return GLib.SOURCE_REMOVE
         });
+
     }
 }
 
