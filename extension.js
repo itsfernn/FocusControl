@@ -162,7 +162,9 @@ export default class FocusControl extends Extension {
             this.timeoutId = null;
         }
 
-        this.timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 350, () => {
+        const highlight_duration = this._settings.get_int('highlight-duration') || 350;
+
+        this.timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, highlight_duration, () => {
             if (this.highlightRect) {
                 Main.uiGroup.remove_child(this.highlightRect);
                 this.highlightRect.destroy();

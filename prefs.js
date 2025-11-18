@@ -54,6 +54,7 @@ export default class Preferences extends ExtensionPreferences {
         group.add(this._spinRow(settings, "border-width", 1, 20, 1));
         group.add(this._spinRow(settings, "corner-radius", 0, 20, 1));
         group.add(this._colorRow(settings, "border-color"));
+        group.add(this._spinRow(settings, "highlight-duration", 0, 1000, 50));
 
         return group;
     }

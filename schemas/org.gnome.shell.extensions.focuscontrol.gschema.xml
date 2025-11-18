@@ -36,5 +36,9 @@
             <summary>Border Width</summary>
             <description>Width of the border for focused windows (in pixels)</description>
     </key>
+    <key name="highlight-duration" type="i">
+            <default>300</default>
+            <summary>Highlight Timeout</summary>
+    </key>
   </schema>
 </schemalist>
