@@ -157,16 +157,16 @@ export default class FocusControl extends Extension {
             // Direction filter
             switch (dir) {
                 case Direction.RIGHT:
-                    if (fw.x < cw.x) continue;
+                    if (fw.x + fw.width < cw.x + cw.width) continue;
                     break;
                 case Direction.LEFT:
-                    if (fw.x + fw.width > cw.x + cw.width) continue;
+                    if (fw.x > cw.x) continue;
                     break;
                 case Direction.UP:
-                    if (fw.y + fw.height > cw.y + cw.height) continue;
+                    if (fw.y > cw.y) continue;
                     break;
                 case Direction.DOWN:
-                    if (fw.y < cw.y) continue;
+                    if (fw.y + fw.height < cw.y + cw.height) continue;
                     break;
             }
 
