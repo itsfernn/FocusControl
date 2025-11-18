@@ -144,8 +144,6 @@ export default class FocusControl extends Extension {
         ));
 
         const cw = currentWindow.get_frame_rect();
-        const cx = cw.x + cw.width / 2;
-        const cy = cw.y + cw.height / 2;
 
         let best = null;
         let bestDistance = Infinity;
@@ -153,28 +151,48 @@ export default class FocusControl extends Extension {
         const threshold = 10; // pixels
 
         for (const win of windows) {
+            if (win === currentWindow) continue;
             const fw = win.get_frame_rect();
-            const fx = fw.x + fw.width / 2;
-            const fy = fw.y + fw.height / 2;
 
             // Direction filter
             switch (dir) {
                 case Direction.RIGHT:
-                    if (fx <= cx + threshold) continue;
+                    if (fw.x < cw.x) continue;
                     break;
                 case Direction.LEFT:
-                    if (fx >= cx - threshold) continue;
+                    if (fw.x + fw.width > cw.x + cw.width) continue;
                     break;
                 case Direction.UP:
-                    if (fy >= cy - threshold) continue;
+                    if (fw.y + fw.height > cw.y + cw.height) continue;
                     break;
                 case Direction.DOWN:
-                    if (fy <= cy + threshold) continue;
+                    if (fw.y < cw.y) continue;
                     break;
             }
 
-            // Distance
-            const dist = Math.hypot(fx - cx, fy - cy);
+            let dx = Math.max(cw.x - (fw.x + fw.width), fw.x - (cw.x + cw.width), 0);
+            let dy = Math.max(cw.y - (fw.y + fw.height), fw.y - (cw.y + cw.height), 0);
+
+            const overlapX = dx === 0;
+            const overlapY = dy === 0;
+
+            // skip windows that overlap only in movemnt axis (e.g. direcly above when moving to the side)
+            if (dir == Direction.LEFT || dir == Direction.RIGHT) {
+                if (!overlapY && overlapX) continue;
+            }
+            if (dir == Direction.UP || dir == Direction.DOWN) {
+                if (!overlapX && overlapY) continue;
+            }
+
+            // clamp values for partial overlaps
+            const partialOverlap = overlapX !== overlapY;
+            if (partialOverlap) {
+                if (overlapX) dx = 0;
+                if (overlapY) dy = 0;
+            }
+
+            const dist = dx + dy;
+
 
             if (bestDistance - dist > threshold) {
                 bestDistance = dist;
@@ -188,8 +206,11 @@ export default class FocusControl extends Extension {
             }
         }
 
-        const newFocus = best || currentWindow; // Fallback to current window so it gets highlighted again
-        newFocus.activate(global.get_current_time());
+        best?.activate(global.get_current_time());
+        this.drawHighlightAroundWindow(best || currentWindow);
+    }
+
+
     _destroyHighlight() {
         if (highlightRect) {
             Main.uiGroup.remove_child(highlightRect);
